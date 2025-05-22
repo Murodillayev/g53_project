@@ -6,7 +6,6 @@ import uz.pdp.WordGamerBot;
 import uz.pdp.dao.WordDao;
 
 public class MessageHandler {
-
     private static MessageHandler instance;
 
     private final WordDao wordDao = WordDao.getInstance();
@@ -32,36 +31,42 @@ public class MessageHandler {
         sendMessage.setChatId(chatId);
 
 
-        if (text.equalsIgnoreCase("/go")) {
-            wordDao.resetWords();
-            sendMessage.setText("Qani boshladi\n\nIstalgan so'z yubor");
-
-        } else if (text.equalsIgnoreCase("/start")) {
-            sendMessage.setText("O'yinni boshlash uchun /go ni yubor");
-
+        if (text.equalsIgnoreCase("/start")) {
+            wordDao.loadWords();
+            sendMessage.setText("O'yinni boshlash uchun /start ni yubor");
         } else if (text.equalsIgnoreCase("/end")) {
-            wordDao.refreshFile();
-            sendMessage.setText("Yutqazding😎. Yana o'ynash uchun /go ni yubor");
+            wordDao.refresh(chatId);
+            sendMessage.setText("Yutqazding");
 
         } else {
 
-            if (wordDao.isUsed(text)) {
+            if (!wordDao.notUsed(text, chatId)) {
                 sendMessage.setText(text + " so'z foydalanib bo'lingan. Boshqa so'z yubor");
+
+            } else if (!validWord(text, chatId)) {
+                String sign = wordDao.getLastWordEndSign(chatId);
+                sendMessage.setText("<b>" + sign + "</b> harfiga so'z yubor");
             } else {
-                wordDao.addUserWord(text);
-                String word = wordDao.findWord(text.charAt(text.length() - 1));
+                wordDao.putUsed(text, chatId);
+                String word = wordDao.findWord(text.charAt(text.length() - 1) + "", chatId);
                 if (word != null) {
-                    wordDao.addUserWord(word);
+                    wordDao.putUsed(word, chatId);
                     sendMessage.setText(word);
+                    wordDao.putLastWord(word, chatId);
                 } else {
-                    sendMessage.setText("Yutqazdim😔. Yana o'ynash uchun /go ni yubor");
-                    wordDao.refreshFile();
+                    sendMessage.setText("Yutqazdim😔.");
+                    wordDao.refresh(chatId);
                 }
             }
+
         }
 
         bot.sendMessage(sendMessage);
     }
 
+    private boolean validWord(String text, String chatId) {
+        String sign = wordDao.getLastWordEndSign(chatId);
 
+        return sign == null || text.startsWith(wordDao.getLastWordEndSign(chatId));
+    }
 }
