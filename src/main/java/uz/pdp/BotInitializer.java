@@ -8,7 +8,7 @@ public class BotInitializer {
     public static void main(String[] args) {
         try {
             TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
-            api.registerBot(new WordGamerBot());
+            api.registerBot(new CurrencyBot());
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }

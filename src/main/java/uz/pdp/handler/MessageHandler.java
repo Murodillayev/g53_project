@@ -2,14 +2,13 @@ package uz.pdp.handler;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import uz.pdp.WordGamerBot;
-import uz.pdp.dao.WordDao;
+import uz.pdp.*;
 
 public class MessageHandler {
 
     private static MessageHandler instance;
-
-    private final WordDao wordDao = WordDao.getInstance();
+    private final MemberDao memberDao = new MemberDao();
+    private final ButtonMaker buttonMaker = ButtonMaker.getInstance();
 
     private MessageHandler() {
 
@@ -23,41 +22,22 @@ public class MessageHandler {
     }
 
     public void handle(Message message) {
-        WordGamerBot bot = new WordGamerBot();
-
+        CurrencyBot bot = new CurrencyBot();
         String text = message.getText();
         String chatId = message.getChatId().toString();
-
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
+        Member sessionMember = memberDao.getOrCreate(chatId);
 
 
-        if (text.equalsIgnoreCase("/go")) {
-            wordDao.resetWords();
-            sendMessage.setText("Qani boshladi\n\nIstalgan so'z yubor");
+        if (text.equals("/start")) {
+            sendMessage.setText(ConstMessage.WELCOME_MESSAGE.formatted(message.getFrom().getFirstName()));
+            sendMessage.setReplyMarkup(buttonMaker.mainMenuButtons());
 
-        } else if (text.equalsIgnoreCase("/start")) {
-            sendMessage.setText("O'yinni boshlash uchun /go ni yubor");
+        } else if (text.equals(ButtonText.SETTINGS)) {
+            sendMessage.setText(ButtonText.SETTINGS);
+            sendMessage.setReplyMarkup(buttonMaker.settingsButton(sessionMember));
 
-        } else if (text.equalsIgnoreCase("/end")) {
-            wordDao.refreshFile();
-            sendMessage.setText("Yutqazding😎. Yana o'ynash uchun /go ni yubor");
-
-        } else {
-
-            if (wordDao.isUsed(text)) {
-                sendMessage.setText(text + " so'z foydalanib bo'lingan. Boshqa so'z yubor");
-            } else {
-                wordDao.addUserWord(text);
-                String word = wordDao.findWord(text.charAt(text.length() - 1));
-                if (word != null) {
-                    wordDao.addUserWord(word);
-                    sendMessage.setText(word);
-                } else {
-                    sendMessage.setText("Yutqazdim😔. Yana o'ynash uchun /go ni yubor");
-                    wordDao.refreshFile();
-                }
-            }
         }
 
         bot.sendMessage(sendMessage);
