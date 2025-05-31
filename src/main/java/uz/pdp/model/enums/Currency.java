@@ -1,4 +1,4 @@
-package uz.pdp;
+package uz.pdp.model.enums;
 
 public enum Currency {
 

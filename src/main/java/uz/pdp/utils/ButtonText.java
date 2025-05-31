@@ -1,4 +1,4 @@
-package uz.pdp;
+package uz.pdp.utils;
 
 public class ButtonText {
     public static final String SETTINGS = "Sozlama";

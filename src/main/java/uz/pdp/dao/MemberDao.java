@@ -1,4 +1,8 @@
-package uz.pdp;
+package uz.pdp.dao;
+
+import uz.pdp.model.entity.Setting;
+import uz.pdp.model.enums.Currency;
+import uz.pdp.model.entity.Member;
 
 import java.util.*;
 

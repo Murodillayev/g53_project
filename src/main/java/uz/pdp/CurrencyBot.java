@@ -15,8 +15,10 @@ public class CurrencyBot extends TelegramLongPollingBot {
     private final CallBackHandler callBackHandler = CallBackHandler.getInstance();
 
     public CurrencyBot() {
-        super("8140486869:AAHAJfIABnTh1VC2G10eTlPV7faLORnHlG4");
+        super("8140486869:AAH9TT-XmhIvsRslXVbAVzDZtM6P8b-YBrQ");
     }
+
+
 
     @Override
     public void onUpdateReceived(Update update) {

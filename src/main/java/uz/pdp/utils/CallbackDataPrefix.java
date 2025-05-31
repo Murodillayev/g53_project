@@ -1,4 +1,4 @@
-package uz.pdp;
+package uz.pdp.utils;
 
 public class CallbackDataPrefix {
     public static final String FROM_ = "from_";

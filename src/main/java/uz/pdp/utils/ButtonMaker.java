@@ -1,11 +1,12 @@
-package uz.pdp;
+package uz.pdp.utils;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import uz.pdp.model.entity.Member;
+import uz.pdp.model.entity.Setting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +30,6 @@ public class ButtonMaker {
         KeyboardRow row = new KeyboardRow();
         row.add(button);
         List<KeyboardRow> rows = new ArrayList<>(List.of(row));
-
-
         reply.setKeyboard(rows);
 
         return reply;
