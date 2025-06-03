@@ -1,18 +1,18 @@
 package uz.pdp.utils;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
-import uz.pdp.model.entity.Member;
-import uz.pdp.model.entity.Setting;
+import uz.pdp.model.Todo;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ButtonMaker {
-    private static ButtonMaker instance = new ButtonMaker();
+    private static ButtonMaker instance;
 
     public static ButtonMaker getInstance() {
         if (instance == null) {
@@ -21,75 +21,42 @@ public class ButtonMaker {
         return instance;
     }
 
-
-    public ReplyKeyboardMarkup mainMenuButtons() {
+    public ReplyKeyboard mainMenu() {
         ReplyKeyboardMarkup reply = new ReplyKeyboardMarkup();
-        KeyboardButton button = new KeyboardButton();
-        button.setText(ButtonText.SETTINGS);
+        KeyboardButton add = new KeyboardButton();
+        KeyboardButton todos = new KeyboardButton();
+        add.setText(ButtonText.ADD);
+        todos.setText(ButtonText.TASKS);
 
         KeyboardRow row = new KeyboardRow();
-        row.add(button);
+        row.add(add);
+        row.add(todos);
         List<KeyboardRow> rows = new ArrayList<>(List.of(row));
         reply.setKeyboard(rows);
-
+        reply.setSelective(true);
+        reply.setResizeKeyboard(true);
         return reply;
-
     }
 
+    public InlineKeyboardMarkup todoButtons(Todo todo) {
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        List<InlineKeyboardButton> row = new ArrayList<>();
 
-    public InlineKeyboardMarkup settingsButton(Member member) {
-        InlineKeyboardMarkup inline = new InlineKeyboardMarkup();
-
-        InlineKeyboardButton fromUzs = new InlineKeyboardButton();
-        InlineKeyboardButton toUzs = new InlineKeyboardButton();
-        InlineKeyboardButton fromUsd = new InlineKeyboardButton();
-        InlineKeyboardButton toUsd = new InlineKeyboardButton();
-
-        Setting setting = member.getSetting();
-
-        switch (setting.getFrom()) {
-            case USD -> {
-                fromUsd.setText(ButtonText.USD + " ✅");
-                fromUzs.setText(ButtonText.UZS);
-            }
-            case UZS -> {
-                fromUsd.setText(ButtonText.USD);
-                fromUzs.setText(ButtonText.UZS + " ✅");
-            }
+        if (!todo.isCompleted()){
+            InlineKeyboardButton doneButton = new InlineKeyboardButton();
+            doneButton.setText(ButtonText.DONE);
+            doneButton.setCallbackData(CallBackPrefix.DONE + todo.getId());
+            row.add(doneButton);
         }
 
-        switch (setting.getTo()) {
-            case USD -> {
-                toUzs.setText(ButtonText.UZS);
-                toUsd.setText(ButtonText.USD + " ✅");
-
-            }
-            case UZS -> {
-                toUzs.setText(ButtonText.UZS + " ✅");
-                toUsd.setText(ButtonText.USD);
-
-            }
-        }
-
-        toUzs.setCallbackData("to_uzs");
-        toUsd.setCallbackData("to_usd");
-        fromUzs.setCallbackData("from_uzs");
-        fromUsd.setCallbackData("from_usd");
-
-        List<InlineKeyboardButton> row1 = new ArrayList<>();
-        List<InlineKeyboardButton> row2 = new ArrayList<>();
-
-        row1.add(fromUzs);
-        row1.add(toUzs);
-
-        row2.add(fromUsd);
-        row2.add(toUsd);
-
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>(List.of(row1, row2));
-
-        inline.setKeyboard(rows);
-
-        return inline;
+        InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+        deleteButton.setText(ButtonText.DELETE);
+        deleteButton.setCallbackData(CallBackPrefix.DELETE + todo.getId());
+        row.add(deleteButton);
+        rows.add(row);
+        inlineKeyboardMarkup.setKeyboard(rows);
+        return inlineKeyboardMarkup;
 
     }
 }

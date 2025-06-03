@@ -2,22 +2,16 @@ package uz.pdp.handler;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
-import uz.pdp.*;
-import uz.pdp.dao.MemberDao;
-import uz.pdp.model.entity.Member;
+import uz.pdp.model.Member;
+import uz.pdp.model.enums.MemberState;
 import uz.pdp.service.TelegramService;
 import uz.pdp.utils.ButtonText;
+import uz.pdp.utils.CacheService;
 
 public class MessageHandler {
-
-    private final TelegramService service = TelegramService.getInstance();
-
     private static MessageHandler instance;
-    private final MemberDao memberDao = new MemberDao();
-
-    private MessageHandler() {
-
-    }
+    private final TelegramService telegramService = TelegramService.getInstance();
+    private final CacheService cacheService = CacheService.getInstance();
 
     public static MessageHandler getInstance() {
         if (instance == null) {
@@ -25,25 +19,30 @@ public class MessageHandler {
         }
         return instance;
     }
-     //-1317389925
+
     public void handle(Message message) {
         String text = message.getText();
         String chatId = message.getChatId().toString();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
-        Member sessionMember = memberDao.getOrCreate(chatId);
-
+        Member session = telegramService.registerMemberAndGet(message.getFrom(), chatId);
 
         if (text.equals("/start")) {
-            service.sendWelcome(sendMessage, sessionMember);
+            telegramService.sendWelcome(sendMessage, session);
 
-        } else if (text.equals(ButtonText.SETTINGS)) {
-            service.sendSettings(sendMessage, sessionMember);
+        } else if (text.equals(ButtonText.ADD)) {
+            telegramService.sendTodoTitleMessage(sendMessage);
 
-        } else if (text.replace(".", "").matches("\\d+")) {
-            service.sendResult(text, sendMessage, sessionMember);
+        } else if (cacheService.getState(chatId).equals(MemberState.SEND_TODO_TITLE)) {
+            telegramService.sendTodoDescriptionMessage(sendMessage, text);
+
+        } else if (cacheService.getState(chatId).equals(MemberState.SEND_TODO_DESCRIPTION)) {
+            telegramService.sendSuccessfullyMessage(sendMessage, text);
+
+        } else if (text.equals(ButtonText.TASKS)) {
+            telegramService.sendTodos(sendMessage,session);
+
         }
+
     }
-
-
 }

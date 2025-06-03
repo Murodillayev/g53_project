@@ -1,31 +1,29 @@
 package uz.pdp.service;
 
-import com.google.gson.Gson;
-import org.apache.commons.lang3.text.StrBuilder;
+import lombok.NonNull;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import uz.pdp.CurrencyBot;
-import uz.pdp.model.entity.CurrencyModel;
-import uz.pdp.model.entity.Member;
-import uz.pdp.model.entity.Setting;
-import uz.pdp.model.enums.Currency;
-import uz.pdp.utils.ButtonMaker;
-import uz.pdp.utils.ButtonText;
-import uz.pdp.utils.ConstMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.User;
+import uz.pdp.TodoBot;
+import uz.pdp.dao.MemberDao;
+import uz.pdp.model.Member;
+import uz.pdp.model.Todo;
+import uz.pdp.model.enums.MemberState;
+import uz.pdp.utils.*;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 public class TelegramService {
-
     private static TelegramService instance;
+    private final MemberDao memberDao = MemberDao.getInstance();
     private final ButtonMaker buttonMaker = ButtonMaker.getInstance();
-    private CurrencyBot bot;
-
-    private TelegramService() {
-    }
+    private final CacheService cacheService = CacheService.getInstance();
+    private TodoBot bot;
 
     public static TelegramService getInstance() {
         if (instance == null) {
@@ -34,92 +32,132 @@ public class TelegramService {
         return instance;
     }
 
-
-    public void sendWelcome(SendMessage sendMessage, Member member) {
-        bot = new CurrencyBot();
-        sendMessage.setText(ConstMessage.WELCOME_MESSAGE.formatted(member.getName()));
-        sendMessage.setReplyMarkup(buttonMaker.mainMenuButtons());
-        bot.sendMessage(sendMessage);
+    public void sendWelcome(SendMessage sendMessage, Member session) {
+        sendMessage.setText(ContantMessages.welcome_message.formatted(session.getFullName()));
+        sendMessage.setReplyMarkup(buttonMaker.mainMenu());
+        sendMessage(sendMessage);
     }
 
-    public void sendSettings(SendMessage sendMessage, Member sessionMember) {
-        bot = new CurrencyBot();
-        sendMessage.setText(ButtonText.SETTINGS);
-        sendMessage.setReplyMarkup(buttonMaker.settingsButton(sessionMember));
-        bot.sendMessage(sendMessage);
-    }
 
-    public void sendResult(String fromValue, SendMessage sendMessage, Member sessionMember) {
-        bot = new CurrencyBot();
-        Setting setting = sessionMember.getSetting();
-        double result;
-
-        if (setting.getFrom().equals(setting.getTo())) {
-            result = Double.parseDouble(fromValue);
-
-        } else if (!setting.getFrom().equals(Currency.UZS) && !setting.getTo().equals(Currency.UZS)) {
-            Double fromUzsValue = toUZS(Double.parseDouble(fromValue), setting.getFrom());
-            Double toUzsValue = toUZS(Double.parseDouble(fromValue), setting.getTo());
-            result = fromUzsValue / toUzsValue;
-
-        } else if (setting.getFrom().equals(Currency.UZS)) {
-            Double toUzsValue = toUZS(1., setting.getTo());
-            result = Double.parseDouble(fromValue) / toUzsValue;
-
-        } else {
-            result = toUZS(Double.parseDouble(fromValue), setting.getFrom());
+    public Member registerMemberAndGet(User from, String chatId) {
+        Optional<Member> byChatId = memberDao.findByChatId(chatId);
+        Member member;
+        if (byChatId.isPresent()) {
+            return byChatId.get();
         }
+        member = new Member();
+        member.setChatId(chatId);
+        String lastName = ((from.getLastName() == null) ? "" : " " + from.getLastName());
+        member.setFullName(from.getFirstName() + lastName);
+        member.setTodos(Collections.emptyList());
+        memberDao.save(member);
 
-        String resultText = ConstMessage.RESULT_TEXT.formatted(fromValue, setting.getFrom(), result, setting.getTo());
-        sendMessage.setText(resultText);
+        return member;
+    }
+
+    public void sendTodoTitleMessage(SendMessage sendMessage) {
+        String chatId = sendMessage.getChatId();
+        sendMessage.setText(ConstantMessages.SEND_TODO_TITLE_MESSAGE);
+        cacheService.putState(chatId, MemberState.SEND_TODO_TITLE);
+        sendMessage(sendMessage);
+    }
+
+    private TodoBot getBotInstance() {
+        if (bot == null) {
+            bot = new TodoBot();
+        }
+        return bot;
+    }
+
+    public void sendTodoDescriptionMessage(SendMessage sendMessage, String todoTitle) {
+        String chatId = sendMessage.getChatId();
+        sendMessage.setText(ConstantMessages.SEND_TODO_DESCRIPTION_MESSAGE);
+        Todo todo = new Todo();
+        todo.setTitle(todoTitle);
+        cacheService.putTodo(chatId, todo);
+        cacheService.putState(chatId, MemberState.SEND_TODO_DESCRIPTION);
+        sendMessage(sendMessage);
+    }
+
+    public void sendSuccessfullyMessage(SendMessage sendMessage, String description) {
+        String chatId = sendMessage.getChatId();
+        Todo tempTodo = cacheService.getTodo(chatId);
+        tempTodo.setDescription(description);
+        memberDao.addTodo(tempTodo, chatId);
+        sendMessage.setText(ConstantMessages.SUCCESSFULLY_CREATED_TODO_MESSAGE);
+        cacheService.deleteState(chatId);
+        sendMessage(sendMessage);
+    }
+
+    private void sendMessage(SendMessage sendMessage) {
+        bot = getBotInstance();
         bot.sendMessage(sendMessage);
     }
 
-    private Double toUZS(Double value, Currency currency) {
+    public void sendTodos(SendMessage sendMessage, Member session) {
+        String chatId = sendMessage.getChatId();
+        List<Todo> todos = session.getTodos();
 
-        CurrencyModel currencyData = getCurrency(currency);
-        assert currencyData != null;
-
-        return Double.parseDouble(currencyData.getRate()) * value;
+        todos.forEach(t -> {
+            SendMessage todoInfo = new SendMessage();
+            todoInfo.setChatId(chatId);
+            todoInfo.setText(prepareTodoInfo(t));
+            todoInfo.setReplyMarkup(buttonMaker.todoButtons(t));
+            sendMessage(todoInfo);
+        });
     }
 
-    private CurrencyModel getCurrency(Currency currency) {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            String url = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/%s/%s/".formatted(currency.name(), LocalDate.now());
-            HttpRequest request = HttpRequest.newBuilder()
-                    .GET()
-                    .uri(URI.create(url))
-                    .build();
+    private @NonNull String prepareTodoInfo(Todo todoInfo) {
+        StringBuilder info = new StringBuilder();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            CurrencyModel[] currencyModels = new Gson().fromJson(response.body(), CurrencyModel[].class);
-            return currencyModels.length == 0 ? null : currencyModels[0];
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        info.append("<b>").append(todoInfo.getTitle()).append("</b>")
+                .append("\n")
+                .append("\n")
+                .append("<b>Description: </b>").append(todoInfo.getDescription())
+                .append("\n")
+                .append("<b>Created at: </b>").append(Utils.dateFormat(todoInfo.getCreatedAt(), "dd-MM-yyyy HH:mm"))
+                .append("\n")
+                .append(todoInfo.isCompleted() ? "✅" : "🕐");
+
+        return info.toString();
+    }
+
+    public void doneTodo(String doneData, Member session, CallbackQuery callbackQuery) {
+        String todoId = doneData.replace(CallBackPrefix.DONE, "");
+        List<Todo> todos = session.getTodos();
+
+        for (Todo todo : todos) {
+            if (todo.getId().equals(todoId)) {
+                todo.setCompleted(true);
+                todo.setUpdatedAt(LocalDateTime.now().toString());
+                memberDao.save(session);
+                editTodoInfo(todo, session.getChatId(), callbackQuery.getMessage().getMessageId());
+                showAlert(callbackQuery);
+            }
         }
     }
 
-
-    public void postChannel() {
-        CurrencyModel usd = getCurrency(Currency.USD);
-        String text = prepareChannelPostText(usd);
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setText(text);
-        sendMessage.setChatId("-1001317389925"); // channel username
-        new CurrencyBot().sendMessage(sendMessage);
+    private void showAlert(CallbackQuery callbackQuery) {
+        AnswerCallbackQuery answerCallbackQuery = new AnswerCallbackQuery();
+        answerCallbackQuery.setShowAlert(true);
+        answerCallbackQuery.setCallbackQueryId(callbackQuery.getId());
+        answerCallbackQuery.setText("Successfully completed!!! ✅");
+        bot.answerCallbackQuery(answerCallbackQuery);
     }
 
-    private String prepareChannelPostText(CurrencyModel usd) {
-        return "===== " + usd.getDate() + " =====\n" +
-                "\uD83D\uDCB0 Bozor kursi\n\n" +
-                "Sotish: " + usd.getRate() + " so‘m\n" +
-                "Olish: " + usd.getRate() + " so‘m\n";
+    private void editTodoInfo(Todo todo, String chatId, Integer messageId) {
+        EditMessageText editMessageText = new EditMessageText();
+        editMessageText.setChatId(chatId);
+        editMessageText.setMessageId(messageId);
+        editMessageText.setText(prepareTodoInfo(todo));
+        editMessageText.setReplyMarkup(buttonMaker.todoButtons(todo));
+        bot.editMessage(editMessageText);
+    }
+
+    public void deleteTodo(String data, Member session, int messageId) {
+        String todoId = data.replace(CallBackPrefix.DELETE, "");
+        session.getTodos().removeIf(t -> t.getId().equals(todoId));
+        memberDao.save(session);
+        bot.deleteMessage(session.getChatId(), messageId);
     }
 }
-
-
-// usd => uzs
-// usd_uzs   uzs
-
-// usd => rub
-// uzs => usd
