@@ -1,6 +1,7 @@
 package uz.pdp.service;
 
 import com.google.gson.Gson;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import uz.pdp.CurrencyBot;
 import uz.pdp.model.entity.CurrencyModel;
@@ -99,6 +100,21 @@ public class TelegramService {
     }
 
 
+    public void postChannel() {
+        CurrencyModel usd = getCurrency(Currency.USD);
+        String text = prepareChannelPostText(usd);
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setText(text);
+        sendMessage.setChatId("-1001317389925"); // channel username
+        new CurrencyBot().sendMessage(sendMessage);
+    }
+
+    private String prepareChannelPostText(CurrencyModel usd) {
+        return "===== " + usd.getDate() + " =====\n" +
+                "\uD83D\uDCB0 Bozor kursi\n\n" +
+                "Sotish: " + usd.getRate() + " so‘m\n" +
+                "Olish: " + usd.getRate() + " so‘m\n";
+    }
 }
 
 

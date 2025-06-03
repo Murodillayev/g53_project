@@ -25,7 +25,7 @@ public class MessageHandler {
         }
         return instance;
     }
-
+     //-1317389925
     public void handle(Message message) {
         String text = message.getText();
         String chatId = message.getChatId().toString();
