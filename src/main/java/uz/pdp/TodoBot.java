@@ -17,7 +17,7 @@ public class TodoBot extends TelegramLongPollingBot {
     private final CallBackHandler callBackHandler = CallBackHandler.getInstance();
 
     public TodoBot() {
-        super("8140486869:AAH9TT-XmhIvsRslXVbAVzDZtM6P8b-YBrQ");
+        super("");
     }
 
     @Override
@@ -35,7 +35,7 @@ public class TodoBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "parrot_pdp_bot";
+        return "";
     }
 
 
